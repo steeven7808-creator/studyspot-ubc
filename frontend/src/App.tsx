@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './App.css';
-import { getRecommendations, submitReport, Location } from './api';
+import { getRecommendations, submitReport } from './api';
+import MapView from './MapView';
 
 function App() {
   const [isExamSeason, setIsExamSeason] = useState(false);
@@ -13,6 +14,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [reported, setReported] = useState<{ [key: number]: boolean }>({});
+  const [showMap, setShowMap] = useState(false);
 
   const handleSearch = async () => {
     setLoading(true);
@@ -27,6 +29,7 @@ function App() {
         group_size: groupSize,
       });
       setResults(data);
+      setShowMap(true);
     } catch (err) {
       console.error('Failed to fetch recommendations:', err);
     }
@@ -93,7 +96,20 @@ function App() {
 
       {!loading && searched && (
         <>
-          <p className="results-header">{results.length} spots found, ranked by best match</p>
+          {showMap && results.length > 0 && (
+            <MapView locations={results} />
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <p className="results-header" style={{ margin: 0 }}>{results.length} spots found, ranked by best match</p>
+            <button
+              onClick={() => setShowMap(!showMap)}
+              style={{ fontSize: '0.85rem', padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', cursor: 'pointer' }}
+            >
+              {showMap ? '🗺️ Hide map' : '🗺️ Show map'}
+            </button>
+          </div>
+
           {results.map((loc, index) => (
             <div key={loc.id} className={`location-card rank-${index + 1}`}>
               <div className="card-header">

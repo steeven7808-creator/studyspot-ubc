@@ -1,0 +1,243 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f0f4f8;
+  color: #1a202c;
+}
+
+.app {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #002145;
+}
+
+.header p {
+  color: #718096;
+  margin-top: 8px;
+}
+
+/* Filter form */
+.filters {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.filters h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #2d3748;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filter-item label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.filter-item select,
+.filter-item input {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: #f7fafc;
+}
+
+.toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.toggle-btn {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.toggle-btn.active {
+  background: #002145;
+  color: white;
+  border-color: #002145;
+}
+
+.search-btn {
+  width: 100%;
+  padding: 12px;
+  background: #002145;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.search-btn:hover {
+  background: #003366;
+}
+
+/* Results */
+.results-header {
+  font-size: 0.9rem;
+  color: #718096;
+  margin-bottom: 12px;
+}
+
+.location-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border-left: 4px solid #002145;
+}
+
+.location-card.rank-1 { border-left-color: #38a169; }
+.location-card.rank-2 { border-left-color: #3182ce; }
+.location-card.rank-3 { border-left-color: #d69e2e; }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.location-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.location-building {
+  font-size: 0.85rem;
+  color: #718096;
+  margin-top: 2px;
+}
+
+.score-badge {
+  background: #ebf8ff;
+  color: #2b6cb0;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.tag {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.tag.quiet { background: #c6f6d5; color: #276749; }
+.tag.moderate { background: #fefcbf; color: #744210; }
+.tag.loud { background: #fed7d7; color: #822727; }
+.tag.food { background: #e9d8fd; color: #553c9a; }
+.tag.outlets { background: #bee3f8; color: #2a4365; }
+.tag.crowding-1, .tag.crowding-2 { background: #c6f6d5; color: #276749; }
+.tag.crowding-3 { background: #fefcbf; color: #744210; }
+.tag.crowding-4, .tag.crowding-5 { background: #fed7d7; color: #822727; }
+
+.notes {
+  font-size: 0.85rem;
+  color: #718096;
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.report-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.report-section p {
+  font-size: 0.8rem;
+  color: #718096;
+  margin-bottom: 6px;
+}
+
+.crowding-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.crowding-btn {
+  padding: 4px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  background: white;
+  transition: all 0.15s;
+}
+
+.crowding-btn:hover {
+  background: #002145;
+  color: white;
+}
+
+.report-thanks {
+  font-size: 0.8rem;
+  color: #38a169;
+  font-weight: 500;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #718096;
+}

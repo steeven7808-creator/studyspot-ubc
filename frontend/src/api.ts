@@ -47,6 +47,12 @@ export const getRecommendations = async (params: RecommendationParams): Promise<
   return data;
 };
 
+// Parse a natural language query into structured filters using Claude
+export const parseNaturalQuery = async (query: string): Promise<RecommendationParams> => {
+  const { data } = await axios.post(`${BASE_URL}/api/parse-query`, { query });
+  return data;
+};
+
 // Submit a crowding report
 export const submitReport = async (
   location_id: number,

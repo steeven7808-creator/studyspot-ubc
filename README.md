@@ -41,11 +41,8 @@ Over time I built up personal knowledge of which spots were good at which times.
 ## Architecture
 
 User → React frontend (Vercel)
-↓
-Node.js/Express API (Render)
-↓
-Supabase PostgreSQL
-Anthropic Claude API
+→ Node.js/Express API (Render)
+→ Supabase PostgreSQL + Anthropic Claude API
 
 ## How the recommendation algorithm works
 

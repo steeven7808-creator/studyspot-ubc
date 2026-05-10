@@ -86,31 +86,43 @@ app.get('/api/recommendations', async (req, res) => {
     .select('*');
 
   // Score each location based on user preferences
-  const scored = locations.map(loc => {
-    let score = 100;
+const scored = locations.map(loc => {
+  let score = 100;
+  let isClosed = false;
 
-    // Penalize crowded locations
-    const pattern = patterns?.find(p => p.location_id === loc.id);
-    if (pattern) score -= pattern.crowding_level * 15;
+  // Check if location is currently open
+  if (loc.open_time && loc.close_time) {
+    const currentHour = parseInt(hour);
+    const openHour = parseInt(loc.open_time.split(':')[0]);
+    const closeHour = parseInt(loc.close_time.split(':')[0]);
+    if (currentHour < openHour || currentHour >= closeHour) {
+      isClosed = true;
+      score -= 1000; // Push closed locations to bottom
+    }
+  }
 
-    // Penalize if user wants quiet but location is loud
-    if (wants_quiet === 'true' && loc.noise_level !== 'quiet') score -= 30;
+  // Penalize crowded locations
+  const pattern = patterns?.find(p => p.location_id === loc.id);
+  if (pattern) score -= pattern.crowding_level * 15;
 
-    // Penalize if user needs food but location doesn't allow it
-    if (allows_food === 'true' && !loc.allows_food) score -= 40;
+  // Penalize if user wants quiet but location is loud
+  if (wants_quiet === 'true' && loc.noise_level !== 'quiet') score -= 30;
 
-    // Penalize if user wants coffee nearby but none available
-    const hasCoffee = coffeeSpots?.some(c => c.location_id === loc.id && c.walking_minutes <= 3);
-    if (wants_coffee_nearby === 'true' && !hasCoffee) score -= 20;
+  // Penalize if user needs food but location doesn't allow it
+  if (allows_food === 'true' && !loc.allows_food) score -= 40;
 
-    // Penalize if location capacity might be too small for group
-    if (loc.capacity && parseInt(group_size) > loc.capacity * 0.5) score -= 20;
+  // Penalize if user wants coffee nearby but none available
+  const hasCoffee = coffeeSpots?.some(c => c.location_id === loc.id && c.walking_minutes <= 3);
+  if (wants_coffee_nearby === 'true' && !hasCoffee) score -= 20;
 
-    // Attach crowding level for display
-    const crowding = pattern ? pattern.crowding_level : null;
+  // Penalize if location capacity might be too small for group
+  if (loc.capacity && parseInt(group_size) > loc.capacity * 0.5) score -= 20;
 
-    return { ...loc, score, crowding_level: crowding };
-  });
+  // Attach crowding level for display
+  const crowding = pattern ? pattern.crowding_level : null;
+
+  return { ...loc, score, crowding_level: crowding, is_closed: isClosed };
+});
 
   // Sort by score descending
   scored.sort((a, b) => b.score - a.score);

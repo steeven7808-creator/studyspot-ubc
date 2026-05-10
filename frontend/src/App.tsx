@@ -211,8 +211,21 @@ function App() {
               <div className="card-header">
                 <div>
                   <div className="location-name">
-                    {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📍'} {loc.name}
-                  </div>
+  {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📍'} {loc.name}
+  {(loc as any).is_closed && (
+    <span style={{
+      marginLeft: '8px',
+      fontSize: '0.7rem',
+      background: '#fed7d7',
+      color: '#822727',
+      padding: '2px 8px',
+      borderRadius: '10px',
+      fontWeight: 600
+    }}>
+      CLOSED
+    </span>
+  )}
+</div>
                   <div className="location-building">{loc.building}</div>
                 </div>
                 <div className="score-badge">Score: {loc.score}</div>

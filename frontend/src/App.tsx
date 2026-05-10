@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import { getRecommendations, submitReport } from './api';
+import { getRecommendations, submitReport, chatSearch } from './api';
 import MapView from './MapView';
 
 function App() {
@@ -15,12 +15,15 @@ function App() {
   const [searched, setSearched] = useState(false);
   const [reported, setReported] = useState<{ [key: number]: boolean }>({});
   const [showMap, setShowMap] = useState(false);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [searchMode, setSearchMode] = useState<'chat' | 'filter'>('chat');
 
-  const handleSearch = async () => {
+  const handleSearch = async (params?: any) => {
     setLoading(true);
     setSearched(true);
     try {
-      const data = await getRecommendations({
+      const data = await getRecommendations(params || {
         hour,
         is_exam_season: isExamSeason,
         wants_quiet: wantsQuiet,
@@ -34,6 +37,25 @@ function App() {
       console.error('Failed to fetch recommendations:', err);
     }
     setLoading(false);
+  };
+
+  const handleChatSearch = async () => {
+    if (!chatMessage.trim()) return;
+    setChatLoading(true);
+    try {
+      const params = await chatSearch(chatMessage);
+      // Update filter state to reflect what AI extracted
+      setHour(params.hour);
+      setIsExamSeason(params.is_exam_season);
+      setWantsQuiet(params.wants_quiet);
+      setAllowsFood(params.allows_food);
+      setWantsCoffee(params.wants_coffee_nearby);
+      setGroupSize(params.group_size);
+      await handleSearch(params);
+    } catch (err) {
+      console.error('Chat search failed:', err);
+    }
+    setChatLoading(false);
   };
 
   const handleReport = async (locationId: number, crowdingLevel: number) => {
@@ -61,35 +83,89 @@ function App() {
       </div>
 
       <div className="filters">
-        <h2>What are you looking for?</h2>
-        <div className="filter-grid">
-          <div className="filter-item">
-            <label>Time of day</label>
-            <select value={hour} onChange={e => setHour(parseInt(e.target.value))}>
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>
-                  {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="filter-item">
-            <label>Group size</label>
-            <input
-              type="number" min={1} max={20} value={groupSize}
-              onChange={e => setGroupSize(parseInt(e.target.value))}
+        {/* Mode toggle */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button
+            onClick={() => setSearchMode('chat')}
+            style={{
+              flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+              background: searchMode === 'chat' ? '#002145' : '#f7fafc',
+              color: searchMode === 'chat' ? 'white' : '#718096',
+              fontWeight: 600, fontSize: '0.9rem'
+            }}
+          >
+            ✨ Ask AI
+          </button>
+          <button
+            onClick={() => setSearchMode('filter')}
+            style={{
+              flex: 1, padding: '8px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+              background: searchMode === 'filter' ? '#002145' : '#f7fafc',
+              color: searchMode === 'filter' ? 'white' : '#718096',
+              fontWeight: 600, fontSize: '0.9rem'
+            }}
+          >
+            🔧 Manual filters
+          </button>
+        </div>
+
+        {/* Chat mode */}
+        {searchMode === 'chat' && (
+          <div>
+            <textarea
+              value={chatMessage}
+              onChange={e => setChatMessage(e.target.value)}
+              placeholder="e.g. I need a quiet spot for 2 people tonight around 8pm, we're bringing food..."
+              style={{
+                width: '100%', padding: '12px', borderRadius: '8px',
+                border: '1px solid #e2e8f0', fontSize: '0.95rem',
+                resize: 'none', height: '80px', boxSizing: 'border-box',
+                fontFamily: 'inherit'
+              }}
             />
+            <button
+              className="search-btn"
+              onClick={handleChatSearch}
+              disabled={chatLoading}
+              style={{ marginTop: '8px' }}
+            >
+              {chatLoading ? 'Thinking...' : '✨ Find my spot →'}
+            </button>
           </div>
-        </div>
+        )}
 
-        <div className="toggle-group">
-          <button className={`toggle-btn ${isExamSeason ? 'active' : ''}`} onClick={() => setIsExamSeason(!isExamSeason)}>📅 Exam season</button>
-          <button className={`toggle-btn ${wantsQuiet ? 'active' : ''}`} onClick={() => setWantsQuiet(!wantsQuiet)}>🤫 Need quiet</button>
-          <button className={`toggle-btn ${allowsFood ? 'active' : ''}`} onClick={() => setAllowsFood(!allowsFood)}>🍕 Bringing food</button>
-          <button className={`toggle-btn ${wantsCoffee ? 'active' : ''}`} onClick={() => setWantsCoffee(!wantsCoffee)}>☕ Want coffee nearby</button>
-        </div>
-
-        <button className="search-btn" onClick={handleSearch}>Find a spot →</button>
+        {/* Filter mode */}
+        {searchMode === 'filter' && (
+          <>
+            <h2>What are you looking for?</h2>
+            <div className="filter-grid">
+              <div className="filter-item">
+                <label>Time of day</label>
+                <select value={hour} onChange={e => setHour(parseInt(e.target.value))}>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i === 0 ? '12:00 AM' : i < 12 ? `${i}:00 AM` : i === 12 ? '12:00 PM' : `${i - 12}:00 PM`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="filter-item">
+                <label>Group size</label>
+                <input
+                  type="number" min={1} max={20} value={groupSize}
+                  onChange={e => setGroupSize(parseInt(e.target.value))}
+                />
+              </div>
+            </div>
+            <div className="toggle-group">
+              <button className={`toggle-btn ${isExamSeason ? 'active' : ''}`} onClick={() => setIsExamSeason(!isExamSeason)}>📅 Exam season</button>
+              <button className={`toggle-btn ${wantsQuiet ? 'active' : ''}`} onClick={() => setWantsQuiet(!wantsQuiet)}>🤫 Need quiet</button>
+              <button className={`toggle-btn ${allowsFood ? 'active' : ''}`} onClick={() => setAllowsFood(!allowsFood)}>🍕 Bringing food</button>
+              <button className={`toggle-btn ${wantsCoffee ? 'active' : ''}`} onClick={() => setWantsCoffee(!wantsCoffee)}>☕ Want coffee nearby</button>
+            </div>
+            <button className="search-btn" onClick={() => handleSearch()}>Find a spot →</button>
+          </>
+        )}
       </div>
 
       {loading && <div className="loading">Finding the best spots for you...</div>}

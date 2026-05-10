@@ -138,6 +138,42 @@ app.get('/api/recommendations', async (req, res) => {
   res.json(scored);
 });
 
+// POST /api/chat - parse natural language query using Claude
+app.post('/api/chat', async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: 'message is required' });
+
+  const Anthropic = require('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 500,
+    messages: [{
+      role: 'user',
+      content: `You are helping a UBC student find a study spot. Extract study preferences from their message and return ONLY a JSON object with these fields:
+- hour: number (0-23, current hour if not specified, default to 14)
+- is_exam_season: boolean
+- wants_quiet: boolean
+- allows_food: boolean
+- wants_coffee_nearby: boolean
+- group_size: number (default 1)
+
+Message: "${message}"
+
+Return ONLY the JSON object, no explanation.`
+    }]
+  });
+
+  try {
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
+    res.json(parsed);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to parse response' });
+  }
+});
+
 // POST /api/reports - submit a crowding report
 app.post('/api/reports', async (req, res) => {
   const { location_id, crowding_level, is_exam_season } = req.body;

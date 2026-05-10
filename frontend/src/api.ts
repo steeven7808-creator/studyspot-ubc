@@ -65,3 +65,8 @@ export const submitReport = async (
     is_exam_season
   });
 };
+// Send natural language message to Claude and get filter params back
+export const chatSearch = async (message: string): Promise<RecommendationParams> => {
+  const response = await axios.post(`${BASE_URL}/api/chat`, { message });
+  return response.data;
+};

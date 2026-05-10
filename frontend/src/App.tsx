@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
-import { getRecommendations, submitReport, Location } from './api';
+import { getRecommendations, submitReport, parseNaturalQuery, Location } from './api';
 
 function App() {
   // User filter state
@@ -16,8 +16,52 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  // Natural language search state
+  const [nlQuery, setNlQuery] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const [parsedSummary, setParsedSummary] = useState('');
+
   // Track which cards have been reported
   const [reported, setReported] = useState<{ [key: number]: boolean }>({});
+
+  const handleAiSearch = async () => {
+    if (!nlQuery.trim()) return;
+    setParsing(true);
+    try {
+      const parsed = await parseNaturalQuery(nlQuery);
+
+      // Populate filter controls so the user can see what was understood
+      setHour(parsed.hour);
+      setIsExamSeason(parsed.is_exam_season);
+      setWantsQuiet(parsed.wants_quiet);
+      setAllowsFood(parsed.allows_food);
+      setWantsCoffee(parsed.wants_coffee_nearby);
+      setGroupSize(parsed.group_size);
+
+      // Build a human-readable summary of what Claude extracted
+      const h = parsed.hour;
+      const hourLabel = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h - 12} PM`;
+      const parts = [hourLabel];
+      if (parsed.group_size > 1) parts.push(`Group of ${parsed.group_size}`);
+      if (parsed.is_exam_season) parts.push('Exam season');
+      if (parsed.wants_quiet) parts.push('Quiet');
+      if (parsed.allows_food) parts.push('Food OK');
+      if (parsed.wants_coffee_nearby) parts.push('Coffee nearby');
+      setParsedSummary(parts.join(' · '));
+
+      // Run search immediately with the parsed values (state updates are async)
+      setParsing(false);
+      setLoading(true);
+      setSearched(true);
+      const data = await getRecommendations(parsed);
+      setResults(data);
+    } catch (err) {
+      console.error('Failed to parse query:', err);
+      setParsing(false);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearch = async () => {
     setLoading(true);
@@ -66,6 +110,35 @@ function App() {
         <h1>📚 StudySpot UBC</h1>
         <p>Find the best place to study on campus right now</p>
       </div>
+
+      {/* AI natural language search */}
+      <div className="ai-search">
+        <div className="ai-search-label">✨ AI Search</div>
+        <div className="ai-search-row">
+          <textarea
+            className="ai-input"
+            placeholder='e.g. "quiet spot for finals tonight around 9pm, group of 3, near coffee"'
+            value={nlQuery}
+            onChange={e => setNlQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAiSearch(); } }}
+            rows={2}
+          />
+          <button
+            className="ai-btn"
+            onClick={handleAiSearch}
+            disabled={parsing || !nlQuery.trim()}
+          >
+            {parsing ? 'Thinking...' : 'Ask AI →'}
+          </button>
+        </div>
+        {parsedSummary && (
+          <div className="ai-understood">
+            <span className="ai-understood-label">Understood:</span> {parsedSummary}
+          </div>
+        )}
+      </div>
+
+      <p className="divider">or set filters manually</p>
 
       {/* Filters */}
       <div className="filters">

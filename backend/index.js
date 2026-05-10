@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const app = express();
@@ -115,6 +116,60 @@ app.get('/api/recommendations', async (req, res) => {
   scored.sort((a, b) => b.score - a.score);
 
   res.json(scored);
+});
+
+// POST /api/parse-query - extract study filters from natural language using Claude
+app.post('/api/parse-query', async (req, res) => {
+  const { query } = req.body;
+  if (!query?.trim()) return res.status(400).json({ error: 'query is required' });
+
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 512,
+    tools: [{
+      name: 'extract_study_preferences',
+      description: 'Extract structured study spot preferences from a natural language query.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          hour: {
+            type: 'number',
+            description: `Hour of day 0–23. Use current hour (${new Date().getHours()}) if the user does not specify a time.`
+          },
+          is_exam_season: {
+            type: 'boolean',
+            description: 'True if the user mentions finals, exams, or midterms.'
+          },
+          wants_quiet: {
+            type: 'boolean',
+            description: 'True if the user wants a quiet or silent environment.'
+          },
+          allows_food: {
+            type: 'boolean',
+            description: 'True if the user mentions bringing food or eating while studying.'
+          },
+          wants_coffee_nearby: {
+            type: 'boolean',
+            description: 'True if the user wants a coffee shop or cafe nearby.'
+          },
+          group_size: {
+            type: 'number',
+            description: 'Number of people studying together. Default to 1 if not mentioned.'
+          }
+        },
+        required: ['hour', 'is_exam_season', 'wants_quiet', 'allows_food', 'wants_coffee_nearby', 'group_size']
+      }
+    }],
+    tool_choice: { type: 'tool', name: 'extract_study_preferences' },
+    messages: [{ role: 'user', content: query }]
+  });
+
+  const toolUse = message.content.find(block => block.type === 'tool_use');
+  if (!toolUse) return res.status(500).json({ error: 'Failed to parse query' });
+
+  res.json(toolUse.input);
 });
 
 // POST /api/reports - submit a crowding report

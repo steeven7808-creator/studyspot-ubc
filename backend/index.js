@@ -1,17 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const Anthropic = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware: allow frontend to talk to backend, parse JSON
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to Supabase using credentials from .env
+// Connect to Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -22,7 +21,6 @@ app.get('/api/locations', async (req, res) => {
   const { data, error } = await supabase
     .from('locations')
     .select('*');
-
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
@@ -69,7 +67,6 @@ app.get('/api/recommendations', async (req, res) => {
   const { data: locations, error } = await supabase
     .from('locations')
     .select('*');
-
   if (error) return res.status(500).json({ error: error.message });
 
   // Fetch crowding patterns for current hour and day type
@@ -80,108 +77,65 @@ app.get('/api/recommendations', async (req, res) => {
     .eq('day_type', dayType)
     .eq('hour', parseInt(hour));
 
+  // Fetch user reports from the last hour
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { data: recentUserReports } = await supabase
+    .from('user_reports')
+    .select('*')
+    .gte('reported_at', oneHourAgo);
+
   // Fetch nearby coffee for all locations
   const { data: coffeeSpots } = await supabase
     .from('nearby_coffee')
     .select('*');
 
   // Score each location based on user preferences
-const scored = locations.map(loc => {
-  let score = 100;
-  let isClosed = false;
+  const scored = locations.map(loc => {
+    let score = 100;
+    let isClosed = false;
 
-  // Check if location is currently open
-  if (loc.open_time && loc.close_time) {
-    const currentHour = parseInt(hour);
-    const openHour = parseInt(loc.open_time.split(':')[0]);
-    const closeHour = parseInt(loc.close_time.split(':')[0]);
-    if (currentHour < openHour || currentHour >= closeHour) {
-      isClosed = true;
-      score -= 1000; // Push closed locations to bottom
+    // Check if location is currently open
+    if (loc.open_time && loc.close_time) {
+      const currentHour = parseInt(hour);
+      const openHour = parseInt(loc.open_time.split(':')[0]);
+      const closeHour = parseInt(loc.close_time.split(':')[0]);
+      if (currentHour < openHour || currentHour >= closeHour) {
+        isClosed = true;
+        score -= 1000;
+      }
     }
-  }
 
-  // Penalize crowded locations
-  const pattern = patterns?.find(p => p.location_id === loc.id);
-  if (pattern) score -= pattern.crowding_level * 15;
+    // Penalize crowded locations based on historical pattern
+    const pattern = patterns?.find(p => p.location_id === loc.id);
+    if (pattern) score -= pattern.crowding_level * 15;
 
-  // Penalize if user wants quiet but location is loud
-  if (wants_quiet === 'true' && loc.noise_level !== 'quiet') score -= 30;
+    // Factor in recent user reports from the last hour (weighted more heavily)
+    const recentReports = recentUserReports?.filter(r => r.location_id === loc.id);
+    if (recentReports && recentReports.length > 0) {
+      const avgRecent = recentReports.reduce((sum, r) => sum + r.crowding_level, 0) / recentReports.length;
+      score -= avgRecent * 20;
+    }
 
-  // Penalize if user needs food but location doesn't allow it
-  if (allows_food === 'true' && !loc.allows_food) score -= 40;
+    // Penalize if user wants quiet but location is loud
+    if (wants_quiet === 'true' && loc.noise_level !== 'quiet') score -= 30;
 
-  // Penalize if user wants coffee nearby but none available
-  const hasCoffee = coffeeSpots?.some(c => c.location_id === loc.id && c.walking_minutes <= 3);
-  if (wants_coffee_nearby === 'true' && !hasCoffee) score -= 20;
+    // Penalize if user needs food but location doesn't allow it
+    if (allows_food === 'true' && !loc.allows_food) score -= 40;
 
-  // Penalize if location capacity might be too small for group
-  if (loc.capacity && parseInt(group_size) > loc.capacity * 0.5) score -= 20;
+    // Penalize if user wants coffee nearby but none available
+    const hasCoffee = coffeeSpots?.some(c => c.location_id === loc.id && c.walking_minutes <= 3);
+    if (wants_coffee_nearby === 'true' && !hasCoffee) score -= 20;
 
-  // Attach crowding level for display
-  const crowding = pattern ? pattern.crowding_level : null;
+    // Penalize if location capacity might be too small for group
+    if (loc.capacity && parseInt(group_size) > loc.capacity * 0.5) score -= 20;
 
-  return { ...loc, score, crowding_level: crowding, is_closed: isClosed };
-});
+    const crowding = pattern ? pattern.crowding_level : null;
+    return { ...loc, score, crowding_level: crowding, is_closed: isClosed };
+  });
 
   // Sort by score descending
   scored.sort((a, b) => b.score - a.score);
-
   res.json(scored);
-});
-
-// POST /api/parse-query - extract study filters from natural language using Claude
-app.post('/api/parse-query', async (req, res) => {
-  const { query } = req.body;
-  if (!query?.trim()) return res.status(400).json({ error: 'query is required' });
-
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 512,
-    tools: [{
-      name: 'extract_study_preferences',
-      description: 'Extract structured study spot preferences from a natural language query.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          hour: {
-            type: 'number',
-            description: `Hour of day 0–23. Use current hour (${new Date().getHours()}) if the user does not specify a time.`
-          },
-          is_exam_season: {
-            type: 'boolean',
-            description: 'True if the user mentions finals, exams, or midterms.'
-          },
-          wants_quiet: {
-            type: 'boolean',
-            description: 'True if the user wants a quiet or silent environment.'
-          },
-          allows_food: {
-            type: 'boolean',
-            description: 'True if the user mentions bringing food or eating while studying.'
-          },
-          wants_coffee_nearby: {
-            type: 'boolean',
-            description: 'True if the user wants a coffee shop or cafe nearby.'
-          },
-          group_size: {
-            type: 'number',
-            description: 'Number of people studying together. Default to 1 if not mentioned.'
-          }
-        },
-        required: ['hour', 'is_exam_season', 'wants_quiet', 'allows_food', 'wants_coffee_nearby', 'group_size']
-      }
-    }],
-    tool_choice: { type: 'tool', name: 'extract_study_preferences' },
-    messages: [{ role: 'user', content: query }]
-  });
-
-  const toolUse = message.content.find(block => block.type === 'tool_use');
-  if (!toolUse) return res.status(500).json({ error: 'Failed to parse query' });
-
-  res.json(toolUse.input);
 });
 
 // POST /api/reports - submit a crowding report

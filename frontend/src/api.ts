@@ -67,34 +67,6 @@ export const submitReport = async (
 };
 // Send natural language message to Claude and get filter params back
 export const chatSearch = async (message: string): Promise<RecommendationParams> => {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': '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',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-allow-browser': 'true'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 500,
-      messages: [{
-        role: 'user',
-        content: `You are helping a UBC student find a study spot. Extract study preferences from their message and return ONLY a JSON object with these fields:
-- hour: number (0-23, current hour if not specified, default to 14)
-- is_exam_season: boolean
-- wants_quiet: boolean
-- allows_food: boolean
-- wants_coffee_nearby: boolean
-- group_size: number (default 1)
-
-Message: "${message}"
-
-Return ONLY the JSON object, no explanation.`
-      }]
-    })
-  });
-  const data = await response.json();
-  const text = data.content[0].text;
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
+  const response = await axios.post(`${BASE_URL}/api/chat`, { message });
+  return response.data;
 };

@@ -147,7 +147,7 @@ app.post('/api/chat', async (req, res) => {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: 500,
     messages: [{
       role: 'user',
@@ -193,5 +193,4 @@ app.post('/api/reports', async (req, res) => {
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-}); 
-// Updated Sat  9 May 2026 22:03:07 PDT
+});// fix model name
